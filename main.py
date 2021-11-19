@@ -1,68 +1,78 @@
 ﻿import cv2
-import PoseModule as pm
-import time
-import matplotlib.pyplot as plt
 import numpy as np
+import PoseModule as pm
 
 cap = cv2.VideoCapture(0)
-pTime = 0
+frameIds = cap.get(cv2.CAP_PROP_FRAME_COUNT) * np.random.uniform(size=50)
+
+
+h = [0, 0]
+w = [0, 0]
+frames = []
 detector = pm.poseDetector()
+y = [0, 0]
 
-kernel = None
-backgroundobject = cv2.createBackgroundSubtractorMOG2(detectShadows=True)
+for fid in frameIds:
+    cap.set(cv2.CAP_PROP_POS_FRAMES, fid)
+    ret, frame = cap.read()
+    frames.append(frame)
 
-while True:
-    # Read a new frame
-    ret, img = cap.read()
-    # Check if frame is not read correctly
-    if not ret:
-        break
-    # apply the background object on each frame to get the segment mask
-    fgmask = backgroundobject.apply(img)
-    # Perform thresholding to get rid of the shadows.
-    _, fgmask = cv2.threshold(fgmask, 250, 255, cv2.THRESH_BINARY)
+medianFrame = np.median(frames, axis=0).astype(dtype=np.uint8)
 
-    # Apply some morphological operations to mask sure you have a good mask
-    fgmask = cv2.erode(fgmask, kernel, iterations=1)
-    # fgmask = cv2.dilate(fgmask, kernel, iterations=2)
-    # also the extracting the real detected foreground part of the image (optional)
-    # Detect contours in the frame
-    contours, _ = cv2.findContours(fgmask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    # Create a copy of the frame to draw bounding box around the detected
-    frameCopy = img.copy()
-    # loop over each contour found in the frame
-    for cnt in contours:
-        if cv2.contourArea(cnt) > 350:
-            x, y, width, height = cv2.boundingRect(cnt)
-            cv2.rectangle(frameCopy, (x, y), (x + width, y + height), (0, 0, 255), 2)
-            cv2.putText(frameCopy, "Detected", (x, y), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 255, 0), 1, cv2.LINE_AA)
-    foregroundPart = cv2.bitwise_and(img, img, mask=fgmask)
-    stacked = np.hstack((img, foregroundPart, frameCopy))
-    cv2.imshow("Original Frame, Extracted Foreground and Detected", cv2.resize(stacked, None, fx=0.65, fy=0.65))
+frames_zr = cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+frame_width = int(cap.get(3))
+frame_height = int(cap.get(4))
 
-    img = detector.findPose(img)
-    lmList = detector.findPosition(img, draw=False)
-    if len(lmList) != 0:
-        print(lmList[0])
-        cv2.circle(img, (lmList[0][1], lmList[0][2]), 10, (0, 0, 255), cv2.FILLED)
+grayMedianFrame = cv2.cvtColor(medianFrame, cv2.COLOR_BGR2GRAY)
 
-    cTime = time.time()
-    fps = 1.0 / (cTime - pTime)
-    pTime = cTime
+while (cap.isOpened()):
 
-    cv2.putText(img, str(int(fps)), (70, 50), cv2.FONT_HERSHEY_PLAIN, 3,
-                (255, 0, 0), 3)
+    ret, frame = cap.read()
+    if ret == True:
+        orig_frame = frame.copy()
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        img = detector.findPose(orig_frame)
+        lmList = detector.findPosition(img, draw=False)
 
-    cv2.imshow('image', img)
 
-    key = cv2.waitKey(40)
-    if key == 27:
+        diff_frame = cv2.absdiff(gray, grayMedianFrame)
+        _, fgmask = cv2.threshold(diff_frame, 85, 255, cv2.THRESH_BINARY)
+
+        kernel = np.ones((10, 10), np.uint8)
+        fgmask = cv2.dilate(fgmask, kernel, iterations=4)
+        fgmask = cv2.erode(fgmask, kernel, iterations=3)
+        closing = cv2.morphologyEx(fgmask, cv2.MORPH_CLOSE, kernel, iterations=4)
+
+        contours, hierarchy = cv2.findContours(closing, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        Area = 0
+
+        for c in contours:
+            vertices = cv2.boundingRect(c)
+            if(cv2.contourArea(c) > Area):
+                Area = cv2.contourArea(c)
+                rectangle = vertices
+
+                point1 = (rectangle[0], rectangle[1])
+                point2 = (rectangle[0] + rectangle[2], rectangle[1] + rectangle[3])
+                cv2.rectangle(orig_frame, point1, point2, (0, 255, 0), 1)
+                cv2.rectangle(fgmask, point1, point2, (255, 255, 255), 1)
+
+                w.append(rectangle[2])
+                h.append(rectangle[3])
+
+                if len(lmList) != 0:
+                    cy = lmList[0]
+                    y.append(cy)
+
+                    if((w[-2]/rectangle[2] > 1) and (h[-2]/rectangle[3] > 1) and ((cy - y[-2])) > 60):
+                        cv2.putText(orig_frame, "Fall detect", (30, 60), cv2.FONT_HERSHEY_SIMPLEX, 1.5, (0, 0, 255), 2, 11)
+                        print("fall detection")
+
+            cv2.imshow('frame_detect', orig_frame)
+            cv2.imshow('frame', fgmask)
+
+    if cv2.waitKey(1) & 0xFF == 27:
         break
 
 cap.release()
-
-
-
-
-
-
+cv2.destroyAllWindows()
