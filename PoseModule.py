@@ -1,6 +1,6 @@
 import cv2
 import mediapipe as mp
-
+import time
 
 class poseDetector():
     def __init__(self, mode=False, upBody=False, smooth=True,
@@ -41,3 +41,22 @@ class poseDetector():
                     cv2.circle(img, (cx, cy), 10, (255, 0, 0), cv2.FILLED)
         return lmList
 
+def main():
+    cap = cv2.VideoCapture(0)
+    detector = poseDetector()
+    y = [0, 0]
+    while True:
+        ret, img = cap.read()
+        img = detector.findPose(img)
+        lmList = detector.findPosition(img, draw=False)
+        if len(lmList) != 0:
+            cy = lmList[0]
+            y.append(cy)
+
+            if ((cy - y[-2]) > 60):
+                print("fall detection")
+
+        cv2.imshow('image', img)
+        cv2.waitKey(1)
+
+if __name__ == "__main__": main()
