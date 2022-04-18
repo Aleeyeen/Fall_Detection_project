@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+
+{% block content %}
+<body>
+  <nav class="navbar navbar-expand-lg navbar-light bg-light">
+    <a class="navbar-brand" href="/home">Home</a>
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarNav">
+      <ul class="navbar-nav">
+        <li class="nav-item active">
+        <a class="nav-link" href="/index">Log Out</a>
+      </li>
+      </ul>
+    </div>
+  </nav>
+  <br/>
+    <div class="jumbotron">
+      <h1 class="display-4">บันทึกข้อมูลการตรวจจับการหกล้ม</h1>
+      <hr class="my-4">
+    </div>
+  <div class="container mt-3">
+    <table class="Table text-center">
+      <thead>
+        <th>Type</th>
+        <th>Description</th>
+        <th>Date & Time</th>
+      </thead>
+      <tbody id="tbody1"></tbody>
+    </table>
+  </div>
+
+  <script type="module">
+
+      var No = 0;
+      var tbody = document.getElementById("tbody1");
+
+      function AddItem(type, Description, Date){
+        let trow = document.createElement("tr");
+        let td1 = document.createElement("td");
+        let td2 = document.createElement("td");
+        let td3 = document.createElement("td")
+
+        td1.innerHTML = type;
+        td2.innerHTML = Description
+        td3.innerHTML = Date;
+
+        trow.appendChild(td1);
+        trow.appendChild(td2);
+        trow.appendChild(td3);
+        tbody.appendChild(trow)
+      }
+
+      function AddAllItem(fall_detect){
+        tbody.innerHTML="";
+        fall_detect.forEach(element => {
+          AddItem(element.type,element.detection, element.date);
+        });
+      }
+
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js";
+
+      const firebaseConfig = {
+          apiKey: "AIzaSyAMQP9fswkwj4Vitb_8MhUBmvq5Zf1LVQA",
+          authDomain: "fall-data.firebaseapp.com",
+          databaseURL: "https://fall-data-default-rtdb.firebaseio.com",
+          projectId: "fall-data",
+          storageBucket: "fall-data.appspot.com",
+          messagingSenderId: "252352858299",
+          appId: "1:252352858299:web:3459d8089879a35767419e",
+          measurementId: "G-6ZRL8QHKVD"
+      };
+
+      const app = initializeApp(firebaseConfig);
+      
+      import {getDatabase, ref, child, onValue, get}
+      from "https://www.gstatic.com/firebasejs/9.6.10/firebase-database.js";
+      const db = getDatabase();
+
+      function GetAllData(){
+        const dbRef = ref(db);
+        get(child(dbRef, "detection"))
+        .then((snapshot)=>{
+          var falls = [];
+
+          snapshot.forEach(childSnapshot =>{
+            falls.push(childSnapshot.val());
+            // console.log(falls)
+         });
+         AddAllItem(falls);
+       });
+      }
+
+      function GetAllDataRealtime(){
+        const dbRef = ref(db, "detection");
+        onValue(dbRef,(snapshot) => {
+          var falls = [];
+
+          snapshot.forEach(childSnapshot => {
+            falls.push(childSnapshot.val());
+          });
+          AddAllItem(falls);
+        })
+      }
+
+      window.onload = GetAllDataRealtime;
+      
+  </script>
+</body>
+{% endblock %}

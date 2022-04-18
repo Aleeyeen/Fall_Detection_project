@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block content %}
+    <br/>
+      <div class="jumbotron">
+        <h1 class="display-4">Fall detection System</h1>
+        <hr class="my-4">
+        {% if smessage %}
+          <div class="alert alert-success">
+            {{ smessage }}
+          </div>
+        {% endif %}
+        {% if umessage %}
+          <div class="alert alert-danger">
+            {{ umessage }}
+          </div>
+        {% endif %}
+        <form action="/index" method="post">
+            <div class="form-group">
+            <label for="exampleInputEmail1">Email address</label>
+            <input type="email" class="form-control" name="name"  placeholder="Enter email">
+            </div>
+            <div class="form-group">
+            <label for="exampleInputPassword1">Password</label>
+            <input type="password" class="form-control" name="password" placeholder="Password">
+            <a href="/forgot_password" class="text-decoration-none">Forgot Password</a>
+            </div>
+            <button type="submit" name="submit" class="btn btn-primary">Sign In</button>
+        </form>
+
+        <div class="row">
+          <div class="col-sm">
+            <a>New User? </a><strong><a href="/create_account" class="text-decoration-none">Create an Account</a></strong>
+        </div>
+     </div>
+{% endblock %}
